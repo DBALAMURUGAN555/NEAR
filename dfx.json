@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "dfx": "0.18.0",
+  "canisters": {
+    "vault_core": {
+      "type": "motoko",
+      "main": "src/canisters/vault_core/main.mo"
+    },
+    "liquidator": {
+      "type": "motoko",
+      "main": "src/canisters/liquidator/main.mo"
+    },
+    "yield_engine": {
+      "type": "rust",
+      "build": "cargo build --target wasm32-unknown-unknown --release",
+      "candid": "src/canisters/yield_engine/yield_engine.did"
+    },
+    "oracle": {
+      "type": "rust",
+      "candid": "src/canisters/oracle/oracle.did",
+      "build": "cargo build --target wasm32-unknown-unknown --release"
+    },
+    "compliance": {
+      "type": "rust",
+      "candid": "src/canisters/compliance/compliance.did",
+      "build": "cargo build --target wasm32-unknown-unknown --release"
+    },
+    "nft": {
+      "type": "motoko",
+      "main": "src/canisters/nft/main.mo"
+    },
+    "admin": {
+      "type": "motoko",
+      "main": "src/canisters/admin/main.mo"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "npm run build",
+      "args": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000"
+    }
+  }
+}
