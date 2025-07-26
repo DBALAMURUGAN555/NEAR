@@ -10,6 +10,6 @@ Borrowers pay interest in ICP/stables (hedging Bitcoin volatility).
 
 Real-World Relevance:
 
- - For Emerging Markets: Unbanked users can borrow against BTC without KYC (e.g., Argentina’s 100%+ inflation).
+ - For Emerging Markets: Unbanked users can borrow against BTC without KYC.
  - For Institutions: Compliant vaults with on-chain KYC (e.g., Chainalysis oracles) for regulated entities.
  - Post-Bitcoin ETF Use Case: ETFs like BlackRock’s IBIT ($20B AUM) could use this for institutional-grade lending.
