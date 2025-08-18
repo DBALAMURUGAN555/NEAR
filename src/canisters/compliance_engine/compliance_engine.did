@@ -1,0 +1,194 @@
+type EntityType = variant {
+  Individual;
+  Corporation;
+  Government;
+  FinancialInstitution;
+  CustodyProvider;
+  TrustCompany;
+  NonProfit;
+  Partnership;
+};
+
+type VerificationLevel = variant {
+  Basic;
+  Enhanced;
+  Institutional;
+  Government;
+};
+
+type RiskLevel = variant {
+  Low;
+  Medium;
+  High;
+  Critical;
+  Prohibited;
+};
+
+type KycStatus = variant {
+  NotStarted;
+  Pending;
+  UnderReview;
+  Approved;
+  Rejected;
+  Suspended;
+  Expired;
+};
+
+type AmlStatus = variant {
+  NotChecked;
+  Cleared;
+  Review;
+  Hit;
+  Blocked;
+};
+
+type DocumentType = variant {
+  IdentityDocument;
+  ProofOfAddress;
+  ArticlesOfIncorporation;
+  CertificateOfIncorporation;
+  TaxDocument;
+  BankStatement;
+  ComplianceCertificate;
+  LicenseDocument;
+  PowerOfAttorney;
+  BoardResolution;
+};
+
+type DocumentStatus = variant {
+  Pending;
+  Verified;
+  Rejected;
+  Expired;
+};
+
+type ComplianceFlag = variant {
+  LargeAmount;
+  HighFrequency;
+  UnusualPattern;
+  SanctionedEntity;
+  HighRiskJurisdiction;
+  StructuredTransaction;
+  RapidMovement;
+  CrossBorderTransfer;
+  CashIntensive;
+  PoliticallyExposed;
+};
+
+type MonitoringStatus = variant {
+  Clear;
+  Review;
+  Escalated;
+  SarFiled;
+  Blocked;
+};
+
+type SarStatus = variant {
+  Draft;
+  Filed;
+  Acknowledged;
+  UnderInvestigation;
+  Closed;
+};
+
+type Document = record {
+  id: text;
+  document_type: DocumentType;
+  name: text;
+  hash: text;
+  uploaded_at: nat64;
+  verified_at: opt nat64;
+  verification_status: DocumentStatus;
+  metadata: text;
+};
+
+type KycProfile = record {
+  id: text;
+  principal: principal;
+  entity_type: EntityType;
+  legal_name: text;
+  jurisdiction: text;
+  registration_number: opt text;
+  verification_level: VerificationLevel;
+  risk_level: RiskLevel;
+  kyc_status: KycStatus;
+  aml_status: AmlStatus;
+  created_at: nat64;
+  last_updated: nat64;
+  documents: vec Document;
+};
+
+type TransactionMonitoring = record {
+  id: text;
+  account_id: text;
+  transaction_id: text;
+  amount: nat64;
+  transaction_type: text;
+  timestamp: nat64;
+  risk_score: nat8;
+  flags: vec ComplianceFlag;
+  status: MonitoringStatus;
+  reviewed_by: opt principal;
+  reviewed_at: opt nat64;
+  notes: opt text;
+};
+
+type SuspiciousActivityReport = record {
+  id: text;
+  account_id: text;
+  reporting_entity: text;
+  suspicious_activity: text;
+  amount_involved: nat64;
+  time_period: text;
+  narrative: text;
+  filed_at: nat64;
+  filed_by: principal;
+  reference_number: text;
+  status: SarStatus;
+};
+
+type ComplianceSettings = record {
+  auto_kyc_enabled: bool;
+  sanctions_screening_enabled: bool;
+  pep_screening_enabled: bool;
+  adverse_media_screening_enabled: bool;
+  transaction_monitoring_enabled: bool;
+  high_risk_threshold: nat64;
+  sar_threshold: nat64;
+  kyc_renewal_days: nat32;
+  document_retention_days: nat32;
+};
+
+type Result = variant {
+  Ok: text;
+  Err: text;
+};
+
+service : {
+  // KYC Management
+  create_kyc_profile: (principal, EntityType, text, text, opt text) -> (Result);
+  add_kyc_document: (text, DocumentType, text, text, text) -> (Result);
+  verify_kyc_document: (text, text, bool) -> (Result);
+  approve_kyc_profile: (text, VerificationLevel) -> (Result);
+  
+  // Transaction Monitoring
+  monitor_transaction: (text, text, nat64, text) -> (Result);
+  file_sar_report: (text, text) -> (Result);
+  
+  // Query Functions
+  get_kyc_profile: (text) -> (opt KycProfile) query;
+  get_kyc_by_principal: (principal) -> (opt KycProfile) query;
+  check_compliance_status: (principal) -> (Result) query;
+  get_transaction_monitoring: (text) -> (opt TransactionMonitoring) query;
+  get_pending_reviews: () -> (vec TransactionMonitoring) query;
+  get_sar_reports: () -> (vec SuspiciousActivityReport) query;
+  get_compliance_settings: () -> (ComplianceSettings) query;
+  
+  // Admin Functions
+  add_compliance_officer: (principal) -> (Result);
+  update_compliance_settings: (ComplianceSettings) -> (Result);
+  add_sanctioned_entity: (text) -> (Result);
+  
+  // Health Check
+  health_check: () -> (text) query;
+}

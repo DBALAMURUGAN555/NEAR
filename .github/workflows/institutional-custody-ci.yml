@@ -1,0 +1,517 @@
+name: Institutional Custody Platform CI/CD
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly security scans
+
+env:
+  DFX_VERSION: '0.15.2'
+  NODE_VERSION: '18.x'
+  RUST_VERSION: 'stable'
+
+jobs:
+  # Security and Compliance Checks
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security & Compliance Scanning
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trufflesecurity TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Run Semgrep Security Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/rust
+            p/typescript
+
+      - name: SAST CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: rust, typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+
+  # Rust Canister Testing
+  rust-canister-tests:
+    runs-on: ubuntu-latest
+    name: Rust Smart Contract Testing
+    strategy:
+      matrix:
+        canister: ['custody_core', 'yield_engine']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install DFX
+        run: |
+          DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          source "$HOME/.local/share/dfx/env"
+
+      - name: Start DFX local replica
+        run: |
+          dfx start --background --clean
+          sleep 10
+
+      - name: Run Rust unit tests
+        working-directory: ./src/canisters/${{ matrix.canister }}
+        run: |
+          cargo test --verbose
+          cargo clippy -- -D warnings
+          cargo fmt -- --check
+
+      - name: Build canister
+        run: |
+          dfx build ${{ matrix.canister }}
+
+      - name: Deploy canister for testing
+        run: |
+          dfx deploy ${{ matrix.canister }}
+
+      - name: Run integration tests
+        run: |
+          dfx canister call ${{ matrix.canister }} health_check
+          dfx canister call ${{ matrix.canister }} get_version_info
+
+      - name: Stop DFX replica
+        if: always()
+        run: dfx stop
+
+  # Motoko Canister Testing  
+  motoko-canister-tests:
+    runs-on: ubuntu-latest
+    name: Motoko Smart Contract Testing
+    strategy:
+      matrix:
+        canister: ['compliance', 'multisig_wallet']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install DFX and Vessel
+        run: |
+          DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          source "$HOME/.local/share/dfx/env"
+          
+      - name: Start DFX local replica
+        run: |
+          dfx start --background --clean
+          sleep 10
+
+      - name: Build Motoko canister
+        run: |
+          dfx build ${{ matrix.canister }}
+
+      - name: Deploy canister
+        run: |
+          dfx deploy ${{ matrix.canister }}
+
+      - name: Run basic tests
+        run: |
+          dfx canister call ${{ matrix.canister }} health_check
+          dfx canister call ${{ matrix.canister }} greet '("Test")'
+
+      - name: Stop DFX replica
+        if: always()
+        run: dfx stop
+
+  # Frontend Testing
+  frontend-tests:
+    runs-on: ubuntu-latest
+    name: Frontend Testing & Build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint:check
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Run TypeScript check
+        run: npm run type-check
+
+      - name: Run unit tests
+        run: npm run test:unit -- --coverage
+
+      - name: Run component tests
+        run: npm run test:components
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Run E2E tests
+        run: npm run test:e2e:headless
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: frontend
+
+  # Integration Testing
+  full-integration-tests:
+    runs-on: ubuntu-latest
+    name: Full Stack Integration Testing
+    needs: [rust-canister-tests, motoko-canister-tests, frontend-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: wasm32-unknown-unknown
+
+      - name: Install DFX
+        run: |
+          DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          source "$HOME/.local/share/dfx/env"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local replica
+        run: |
+          dfx start --background --clean
+          sleep 15
+
+      - name: Deploy all canisters
+        run: |
+          dfx deploy --yes
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Run full integration tests
+        run: |
+          npm run test:integration
+          
+      - name: Run custody workflow tests
+        run: |
+          npm run test:custody-workflows
+
+      - name: Run compliance tests
+        run: |
+          npm run test:compliance
+
+      - name: Run multi-sig tests
+        run: |
+          npm run test:multisig
+
+      - name: Performance benchmarks
+        run: |
+          npm run test:performance
+
+      - name: Stop DFX replica
+        if: always()
+        run: dfx stop
+
+  # Load Testing
+  load-testing:
+    runs-on: ubuntu-latest
+    name: Load & Stress Testing
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    needs: [full-integration-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install K6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run load tests
+        run: |
+          k6 run tests/load/custody-transactions-load.js
+          k6 run tests/load/compliance-checks-load.js
+          k6 run tests/load/api-endpoints-load.js
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: tests/load/results/
+
+  # Security Testing
+  security-testing:
+    runs-on: ubuntu-latest
+    name: Security Penetration Testing
+    if: github.ref == 'refs/heads/main'
+    needs: [full-integration-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install security tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap sqlmap nikto
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: 'http://localhost:3000'
+
+      - name: Run smart contract security tests
+        run: |
+          npm run test:security:contracts
+
+      - name: Run API security tests
+        run: |
+          npm run test:security:api
+
+      - name: Generate security report
+        run: |
+          npm run generate:security-report
+
+  # Compliance Testing
+  compliance-testing:
+    runs-on: ubuntu-latest
+    name: Regulatory Compliance Testing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run KYC/AML compliance tests
+        run: |
+          npm run test:compliance:kyc
+          npm run test:compliance:aml
+
+      - name: Run audit trail tests
+        run: |
+          npm run test:compliance:audit-trail
+
+      - name: Run data protection tests
+        run: |
+          npm run test:compliance:data-protection
+
+      - name: Generate compliance report
+        run: |
+          npm run generate:compliance-report
+
+      - name: Upload compliance artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: compliance-reports
+          path: reports/compliance/
+
+  # Build and Deploy to Staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    if: github.ref == 'refs/heads/develop'
+    needs: [security-scan, full-integration-tests, compliance-testing]
+    environment:
+      name: staging
+      url: https://staging.institutional-custody.app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: wasm32-unknown-unknown
+
+      - name: Install DFX
+        run: |
+          DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          source "$HOME/.local/share/dfx/env"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for staging
+        run: |
+          npm run build:staging
+          dfx build --network staging
+
+      - name: Deploy to staging
+        env:
+          DFX_NETWORK: staging
+        run: |
+          dfx deploy --network staging --yes
+
+      - name: Run staging smoke tests
+        run: |
+          npm run test:staging:smoke
+
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Production Deployment
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    if: github.ref == 'refs/heads/main'
+    needs: [security-scan, full-integration-tests, load-testing, security-testing, compliance-testing]
+    environment:
+      name: production
+      url: https://institutional-custody.app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: wasm32-unknown-unknown
+
+      - name: Install DFX
+        run: |
+          DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          source "$HOME/.local/share/dfx/env"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: |
+          npm run build:production
+          dfx build --network ic
+
+      - name: Deploy to mainnet
+        env:
+          DFX_NETWORK: ic
+        run: |
+          dfx deploy --network ic --yes
+
+      - name: Run production health checks
+        run: |
+          npm run test:production:health
+
+      - name: Update monitoring
+        run: |
+          npm run update:monitoring:production
+
+      - name: Notify production deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#production-deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Cleanup
+  cleanup:
+    runs-on: ubuntu-latest
+    name: Cleanup Resources
+    if: always()
+    needs: [deploy-staging, deploy-production]
+    steps:
+      - name: Clean up test artifacts
+        run: |
+          echo "Cleaning up test artifacts and temporary resources"
+          # Add cleanup commands here

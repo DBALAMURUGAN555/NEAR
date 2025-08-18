@@ -1,0 +1,137 @@
+type EventType = variant {
+  AccountCreation;
+  AccountModification;
+  AccountClosure;
+  TransactionInitiated;
+  TransactionApproved;
+  TransactionExecuted;
+  TransactionRejected;
+  ComplianceCheck;
+  KycUpdate;
+  RiskAssessment;
+  EmergencyAction;
+  SystemConfiguration;
+  UserAuthentication;
+  AccessGranted;
+  AccessDenied;
+  DataExport;
+  DataModification;
+  PolicyUpdate;
+  AuditAccess;
+};
+
+type ResourceType = variant {
+  CustodyAccount;
+  MultisigWallet;
+  Transaction;
+  KycProfile;
+  ComplianceReport;
+  User;
+  System;
+  Document;
+  Policy;
+  AuditLog;
+};
+
+type ReportType = variant {
+  Daily;
+  Weekly;
+  Monthly;
+  Quarterly;
+  Annual;
+  OnDemand;
+  Regulatory;
+  Internal;
+};
+
+type AuditMetadata = record {
+  ip_address: opt text;
+  user_agent: opt text;
+  session_id: opt text;
+  request_id: opt text;
+  canister_id: opt text;
+  method_name: opt text;
+  before_state: opt text;
+  after_state: opt text;
+  error_code: opt text;
+};
+
+type AuditEntry = record {
+  id: text;
+  timestamp: nat64;
+  event_type: EventType;
+  actor: principal;
+  resource_type: ResourceType;
+  resource_id: text;
+  action: text;
+  details: text;
+  metadata: AuditMetadata;
+  hash: text;
+  previous_hash: opt text;
+  compliance_relevant: bool;
+  retention_until: opt nat64;
+};
+
+type AuditQuery = record {
+  event_types: opt vec EventType;
+  resource_types: opt vec ResourceType;
+  actors: opt vec principal;
+  resource_ids: opt vec text;
+  start_time: opt nat64;
+  end_time: opt nat64;
+  compliance_relevant_only: bool;
+  limit: opt nat32;
+  offset: opt nat32;
+};
+
+type ComplianceReport = record {
+  id: text;
+  report_type: ReportType;
+  period_start: nat64;
+  period_end: nat64;
+  generated_at: nat64;
+  generated_by: principal;
+  entries_count: nat32;
+  summary: text;
+  hash: text;
+  digital_signature: opt text;
+};
+
+type AuditSettings = record {
+  retention_days: nat32;
+  auto_archive_enabled: bool;
+  compliance_reporting_enabled: bool;
+  real_time_alerts_enabled: bool;
+  hash_verification_enabled: bool;
+  digital_signatures_enabled: bool;
+  audit_access_logging: bool;
+};
+
+type Result = variant {
+  Ok: text;
+  Err: text;
+};
+
+service : {
+  // Core Audit Functions
+  log_audit_event: (EventType, ResourceType, text, text, text, opt AuditMetadata, bool) -> (Result);
+  
+  // Query Functions
+  query_audit_entries: (AuditQuery) -> (vec AuditEntry) query;
+  get_audit_entry: (text) -> (opt AuditEntry) query;
+  verify_audit_chain: () -> (Result) query;
+  
+  // Compliance Reporting
+  generate_compliance_report: (ReportType, nat64, nat64) -> (Result);
+  get_compliance_report: (text) -> (opt ComplianceReport) query;
+  list_compliance_reports: () -> (vec ComplianceReport) query;
+  
+  // Administrative Functions
+  add_auditor: (principal, text) -> (Result);
+  update_audit_settings: (AuditSettings) -> (Result);
+  get_audit_settings: () -> (AuditSettings) query;
+  get_audit_statistics: () -> (vec record { text; nat64 }) query;
+  
+  // Health Check
+  health_check: () -> (text) query;
+}

@@ -1,0 +1,9 @@
+type RiskAssessment = record {
+  score: nat8;
+  factors: vec text;
+};
+
+service : {
+  assess_risk: (text, nat64) -> (RiskAssessment);
+  health_check: () -> (text) query;
+}

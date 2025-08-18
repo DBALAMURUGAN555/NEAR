@@ -2,39 +2,39 @@
   "version": 1,
   "dfx": "0.18.0",
   "canisters": {
-    "vault_core": {
-      "type": "motoko",
-      "main": "src/canisters/vault_core/main.mo"
-    },
-    "liquidator": {
-      "type": "motoko",
-      "main": "src/canisters/liquidator/main.mo"
-    },
-    "yield_engine": {
+    "custody_core": {
       "type": "rust",
-      "package": "yield_engine",
-      "candid": "src/canisters/yield_engine/yield_engine.did"
+      "package": "custody_core",
+      "candid": "src/canisters/custody_core/custody_core.did"
     },
-    "oracle": {
+    "events": {
       "type": "motoko",
-      "main": "src/canisters/oracle/main.mo"
+      "main": "src/canisters/events/main.mo"
     },
     "compliance": {
       "type": "motoko",
       "main": "src/canisters/compliance/main.mo"
     },
-    "nft": {
+    "multisig": {
       "type": "motoko",
-      "main": "src/canisters/nft/main.mo"
+      "main": "src/canisters/multisig/main.mo"
     },
-    "admin": {
-      "type": "motoko",
-      "main": "src/canisters/admin/main.mo"
+    "frontend": {
+      "source": [
+        "src/frontend/build/"
+      ],
+      "type": "assets"
     }
   },
   "networks": {
     "local": {
-      "bind": "127.0.0.1:8000"
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
     }
-  }
+  },
+  "output_env_file": ".env"
 }

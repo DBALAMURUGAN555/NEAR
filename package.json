@@ -1,18 +1,103 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "institutional-custody-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Production-ready institutional digital asset custody platform built on Internet Computer",
   "scripts": {
     "dev": "vite",
+    "dev:local": "dfx start --background && npm run dev",
     "build": "vite build",
+    "build:staging": "NODE_ENV=staging vite build",
+    "build:production": "NODE_ENV=production vite build",
+    "preview": "vite preview",
+    
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:check": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    
+    "type-check": "tsc --noEmit",
+    
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:components": "vitest run tests/components",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:headless": "playwright test --headed=false",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    
+    "test:custody-workflows": "vitest run tests/workflows/custody",
+    "test:compliance": "vitest run tests/compliance",
+    "test:multisig": "vitest run tests/multisig",
+    "test:performance": "vitest run tests/performance",
+    
+    "test:compliance:kyc": "vitest run tests/compliance/kyc",
+    "test:compliance:aml": "vitest run tests/compliance/aml",
+    "test:compliance:audit-trail": "vitest run tests/compliance/audit-trail",
+    "test:compliance:data-protection": "vitest run tests/compliance/data-protection",
+    
+    "test:security:contracts": "vitest run tests/security/contracts",
+    "test:security:api": "vitest run tests/security/api",
+    
+    "test:staging:smoke": "vitest run tests/staging/smoke",
+    "test:production:health": "vitest run tests/production/health",
+    
+    "generate:security-report": "node scripts/generate-security-report.js",
+    "generate:compliance-report": "node scripts/generate-compliance-report.js",
+    
+    "update:monitoring:production": "node scripts/update-monitoring.js",
+    
+    "dfx:start": "dfx start --background",
+    "dfx:stop": "dfx stop",
+    "dfx:deploy": "dfx deploy",
+    "dfx:deploy:local": "dfx deploy --network local",
+    "dfx:deploy:staging": "dfx deploy --network staging",
+    "dfx:deploy:production": "dfx deploy --network ic",
+    
+    "canister:build": "dfx build",
+    "canister:test:rust": "cd src/canisters/custody_core && cargo test",
+    "canister:test:motoko": "dfx build compliance && dfx build multisig_wallet",
+    
+    "setup:dev": "npm install && dfx start --background && dfx deploy",
+    "setup:test": "npm install && dfx start --background --clean && dfx deploy",
+    
+    "docs:build": "typedoc --out docs src",
+    "docs:serve": "http-server docs -p 8080",
+    
+    "analyze:bundle": "npm run build && npx vite-bundle-analyzer dist/stats.html",
+    "analyze:deps": "npx depcheck",
+    
+    "precommit": "npm run lint:check && npm run format:check && npm run type-check && npm run test:unit",
+    "prepush": "npm run precommit && npm run test:integration"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.31.1",
+    "@clerk/themes": "^2.4.10",
+    "@dfinity/agent": "^3.2.1",
+    "@dfinity/auth-client": "^3.2.1",
+    "@dfinity/candid": "^3.2.1",
+    "@dfinity/principal": "^3.2.1",
+    "@headlessui/react": "^2.2.7",
+    "@heroicons/react": "^2.2.0",
+    "@hookform/resolvers": "^5.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.12",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.62.0",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.1.2",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
@@ -28,6 +113,24 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    
+    "@playwright/test": "^1.40.0",
+    "@testing-library/dom": "^9.3.4",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.9.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "depcheck": "^1.4.7",
+    "http-server": "^14.1.1",
+    "jsdom": "^23.0.1",
+    "prettier": "^3.1.0",
+    "typedoc": "^0.25.4",
+    "vite-bundle-analyzer": "^0.10.4",
+    "vitest": "^1.0.4",
+    "vitest-mock-extended": "^1.3.1"
   }
 }

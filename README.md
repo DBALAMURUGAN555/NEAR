@@ -28,38 +28,58 @@ This solution is specifically tailored to address challenges faced by custody pr
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Rust toolchain
-- DFX (Internet Computer SDK)
 
-### Installation & Setup
+Before deploying the platform, ensure you have the following tools installed:
+
+- **DFX (Internet Computer SDK)**: `sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"`
+- **Node.js and npm**: `curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -`
+- **Docker and Docker Compose**: `curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh`
+- **Rust**: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+
+### One-Command Deployment
 
 ```bash
-# Clone and navigate to project
-cd /path/to/NEAR
+# Deploy the complete platform (canisters + frontend + SIEM)
+./deploy.sh
 
-# Install dependencies
-npm install
+# Or see all available options
+./deploy.sh help
+```
 
-# Source environment variables
-source "$HOME/.local/share/dfx/env"
-source "$HOME/.cargo/env"
+### Component-Specific Deployments
 
-# Start local ICP replica
-dfx start --background
+```bash
+# Deploy only IC canisters
+./deploy.sh local canisters
 
-# Deploy all canisters
-dfx deploy
+# Deploy only SIEM infrastructure
+./deploy.sh local siem
 
-# Start frontend development server
-npm run dev
+# Build only frontend
+./deploy.sh local frontend
+
+# Run tests only
+./deploy.sh local test
+
+# Clean up deployment
+./deploy.sh local cleanup
 ```
 
 ### Access Points
 
-- **Frontend Application**: http://localhost:5174/
-- **Canister Dashboard**: http://127.0.0.1:8000/
-- **Vault Core Canister**: Test with `dfx canister call vault_core greet '("YourName")'`
+#### IC Platform
+- **Candid Interface**: http://localhost:4943
+- **Events Canister**: Audit trail and security events
+- **Compliance Canister**: KYC/AML and regulatory checks
+- **MultiSig Canister**: Multi-party transaction approvals
+- **Custody Core**: Bitcoin custody operations
+
+#### Monitoring & SIEM
+- **Kibana (SIEM Dashboard)**: http://localhost:5601 (elastic/password)
+- **Grafana (Metrics)**: http://localhost:3000 (admin/password)
+- **Prometheus**: http://localhost:9090
+- **Alertmanager**: http://localhost:9093
+- **Jaeger Tracing**: http://localhost:16686
 
 ## 📋 Functional Components for Enterprise Web3 DApp
 

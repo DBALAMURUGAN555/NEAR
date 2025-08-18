@@ -1,0 +1,10 @@
+type BitcoinAddress = record {
+  address: text;
+  balance: nat64;
+};
+
+service : {
+  generate_address: (text) -> (text);
+  get_balance: (text) -> (nat64) query;
+  health_check: () -> (text) query;
+}

@@ -1,0 +1,125 @@
+type WalletType = variant {
+  CorporateOperational;
+  CorporateTreasury;
+  GovernmentOperational;
+  GovernmentEmergency;
+  InstitutionalCold;
+  InstitutionalHot;
+};
+
+type WalletStatus = variant {
+  Active;
+  Frozen;
+  Archived;
+  Compromised;
+};
+
+type TransactionPriority = variant {
+  Low;
+  Normal;
+  High;
+  Emergency;
+};
+
+type AuditAction = variant {
+  WalletCreated;
+  OwnerAdded;
+  OwnerRemoved;
+  ThresholdChanged;
+  TransactionSubmitted;
+  TransactionConfirmed;
+  TransactionRejected;
+  TransactionExecuted;
+  WalletFrozen;
+  WalletUnfrozen;
+  PolicyUpdated;
+  EmergencyAction;
+};
+
+type MultisigWallet = record {
+  id: text;
+  name: text;
+  owners: vec principal;
+  threshold: nat8;
+  balance: nat64;
+  created_at: nat64;
+  wallet_type: WalletType;
+  status: WalletStatus;
+  daily_limit: nat64;
+  daily_spent: nat64;
+  last_reset_day: nat64;
+};
+
+type MultisigTransaction = record {
+  id: text;
+  wallet_id: text;
+  to: text;
+  amount: nat64;
+  data: vec nat8;
+  confirmations: vec principal;
+  rejections: vec principal;
+  executed: bool;
+  rejected: bool;
+  created_at: nat64;
+  executed_at: opt nat64;
+  transaction_hash: opt text;
+  gas_price: opt nat64;
+  gas_limit: opt nat64;
+  nonce: opt nat64;
+  priority: TransactionPriority;
+};
+
+type WalletPolicy = record {
+  require_confirmation_delay: bool;
+  confirmation_delay_hours: nat32;
+  max_single_transaction: nat64;
+  require_dual_approval_above: nat64;
+  emergency_freeze_threshold: nat64;
+  allowed_destinations: opt vec text;
+  restricted_destinations: vec text;
+};
+
+type WalletAuditLog = record {
+  id: text;
+  wallet_id: text;
+  action: AuditAction;
+  actor: principal;
+  timestamp: nat64;
+  details: text;
+  transaction_id: opt text;
+};
+
+type Result = variant {
+  Ok: text;
+  Err: text;
+};
+
+service : {
+  // Wallet Management
+  create_multisig_wallet: (text, vec principal, nat8, WalletType, nat64) -> (Result);
+  add_wallet_owner: (text, principal) -> (Result);
+  remove_wallet_owner: (text, principal) -> (Result);
+  change_threshold: (text, nat8) -> (Result);
+  
+  // Transaction Management
+  submit_transaction: (text, text, nat64, vec nat8, TransactionPriority) -> (Result);
+  confirm_transaction: (text) -> (Result);
+  reject_transaction: (text) -> (Result);
+  
+  // Emergency Functions
+  emergency_freeze_wallet: (text) -> (Result);
+  emergency_unfreeze_wallet: (text) -> (Result);
+  global_emergency_freeze: () -> (Result);
+  
+  // Query Functions
+  get_wallet: (text) -> (opt MultisigWallet) query;
+  get_user_wallets: (principal) -> (vec MultisigWallet) query;
+  get_transaction: (text) -> (opt MultisigTransaction) query;
+  get_wallet_transactions: (text) -> (vec MultisigTransaction) query;
+  get_pending_transactions: (text) -> (vec MultisigTransaction) query;
+  get_wallet_policy: (text) -> (opt WalletPolicy) query;
+  get_audit_logs: (text) -> (vec WalletAuditLog) query;
+  
+  // Health Check
+  health_check: () -> (text) query;
+}

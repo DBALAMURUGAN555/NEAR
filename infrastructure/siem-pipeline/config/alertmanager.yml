@@ -1,0 +1,382 @@
+# Alertmanager Configuration for IC Custody Platform SIEM
+# Handles incident response routing to PagerDuty, Slack, and email
+
+global:
+  # Default notification resolution timeout
+  resolve_timeout: 5m
+  
+  # SMTP configuration for email alerts
+  smtp_smarthost: '${SMTP_HOST:-localhost:587}'
+  smtp_from: '${SMTP_FROM:-alerts@custody-platform.com}'
+  smtp_auth_username: '${SMTP_USERNAME:-}'
+  smtp_auth_password: '${SMTP_PASSWORD:-}'
+  smtp_require_tls: true
+
+  # Slack API URL
+  slack_api_url: '${SLACK_API_URL:-}'
+  
+  # PagerDuty API URL
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# Routing configuration
+route:
+  # Default receiver for all alerts
+  receiver: 'default-receiver'
+  
+  # How long to wait before sending a notification
+  group_wait: 10s
+  
+  # How long to wait before sending another notification
+  group_interval: 30s
+  
+  # How long to wait before resending a notification
+  repeat_interval: 12h
+  
+  # Group alerts by these labels
+  group_by: 
+    - 'alertname'
+    - 'cluster'
+    - 'service'
+    - 'severity'
+  
+  # Routing rules
+  routes:
+    # P0 Critical alerts - immediate PagerDuty notification
+    - match:
+        severity: 'P0'
+      receiver: 'pagerduty-critical'
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 5m
+      routes:
+        # Also send to Slack for visibility
+        - match:
+            severity: 'P0'
+          receiver: 'slack-critical'
+          continue: true
+    
+    # P1 High priority alerts - PagerDuty with longer delay
+    - match:
+        severity: 'P1'
+      receiver: 'pagerduty-high'
+      group_wait: 30s
+      group_interval: 10m
+      repeat_interval: 1h
+      routes:
+        # Send to Slack as well
+        - match:
+            severity: 'P1'
+          receiver: 'slack-high'
+          continue: true
+    
+    # P2 Medium priority alerts - Slack and email only
+    - match:
+        severity: 'P2'
+      receiver: 'slack-medium'
+      group_wait: 1m
+      group_interval: 15m
+      repeat_interval: 4h
+    
+    # Security incidents - always escalate to PagerDuty
+    - match:
+        category: 'SecurityIncident'
+      receiver: 'pagerduty-security'
+      group_wait: 0s
+      group_interval: 2m
+      repeat_interval: 10m
+      routes:
+        # Also notify security team on Slack
+        - match:
+            category: 'SecurityIncident'
+          receiver: 'slack-security'
+          continue: true
+    
+    # Compliance alerts - notify compliance team
+    - match:
+        category: 'ComplianceCheck'
+      receiver: 'email-compliance'
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+    
+    # Custody operations alerts
+    - match:
+        category: 'CustodyOperation'
+      receiver: 'slack-operations'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 2h
+    
+    # System health alerts
+    - match:
+        category: 'SystemHealth'
+      receiver: 'slack-infrastructure'
+      group_wait: 2m
+      group_interval: 15m
+      repeat_interval: 6h
+    
+    # Authentication failures
+    - match_re:
+        event_type: '(auth_failed|login_failed|mfa_failed)'
+      receiver: 'slack-security'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+# Inhibition rules - prevent duplicate notifications
+inhibit_rules:
+  # Inhibit lower severity alerts when higher severity is firing
+  - source_match:
+      severity: 'P0'
+    target_match_re:
+      severity: 'P[123]'
+    equal: ['alertname', 'instance']
+  
+  - source_match:
+      severity: 'P1'
+    target_match_re:
+      severity: 'P[23]'
+    equal: ['alertname', 'instance']
+  
+  # Inhibit specific event types during maintenance
+  - source_match:
+      alertname: 'MaintenanceMode'
+    target_match_re:
+      category: '(SystemHealth|Infrastructure)'
+    equal: ['instance']
+
+# Notification receivers
+receivers:
+  # Default catch-all receiver
+  - name: 'default-receiver'
+    email_configs:
+      - to: '${DEFAULT_EMAIL:-ops@custody-platform.com}'
+        subject: '[IC Custody] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Category: {{ .Labels.category }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'High'
+  
+  # PagerDuty Critical (P0)
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_CRITICAL_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.instance }}'
+        severity: 'critical'
+        class: 'ic-custody-platform'
+        component: '{{ .GroupLabels.service }}'
+        group: '{{ .GroupLabels.category }}'
+        custom_details:
+          event_type: '{{ .GroupLabels.event_type }}'
+          organization: '{{ .GroupLabels.organization_id }}'
+          correlation_id: '{{ .GroupLabels.correlation_id }}'
+          risk_score: '{{ .GroupLabels.risk_score }}'
+          details: '{{ .Annotations.description }}'
+        links:
+          - href: '${KIBANA_URL}/app/discover#/?_g=(filters:!(),query:(language:kuery,query:'\''correlation_id:"{{ .GroupLabels.correlation_id }}"'\''))'
+            text: 'View in Kibana'
+          - href: '${GRAFANA_URL}/d/custody-overview'
+            text: 'View Monitoring Dashboard'
+  
+  # PagerDuty High Priority (P1)
+  - name: 'pagerduty-high'
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_HIGH_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.instance }}'
+        severity: 'error'
+        class: 'ic-custody-platform'
+        component: '{{ .GroupLabels.service }}'
+        group: '{{ .GroupLabels.category }}'
+        custom_details:
+          event_type: '{{ .GroupLabels.event_type }}'
+          organization: '{{ .GroupLabels.organization_id }}'
+          correlation_id: '{{ .GroupLabels.correlation_id }}'
+          risk_score: '{{ .GroupLabels.risk_score }}'
+  
+  # PagerDuty Security Incidents
+  - name: 'pagerduty-security'
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_SECURITY_KEY}'
+        description: 'SECURITY INCIDENT: {{ .GroupLabels.alertname }}'
+        severity: 'critical'
+        class: 'security-incident'
+        component: 'ic-custody-platform'
+        group: 'security'
+        custom_details:
+          incident_type: '{{ .GroupLabels.event_type }}'
+          actor_id: '{{ .GroupLabels.actor_id_hash }}'
+          organization: '{{ .GroupLabels.organization_id }}'
+          correlation_id: '{{ .GroupLabels.correlation_id }}'
+          automated_response: '{{ .Annotations.automated_response }}'
+          threat_indicators: '{{ .Annotations.threat_indicators }}'
+  
+  # Slack Critical Alerts
+  - name: 'slack-critical'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#alerts-critical'
+        username: 'IC Custody Alerts'
+        icon_emoji: ':rotating_light:'
+        color: 'danger'
+        title: ':rotating_light: CRITICAL ALERT :rotating_light:'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* P0 - CRITICAL
+          *Category:* {{ .GroupLabels.category }}
+          *Service:* {{ .GroupLabels.service }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+          
+          <${KIBANA_URL}/app/discover#/?_g=(filters:!(),query:(language:kuery,query:'correlation_id:"{{ .GroupLabels.correlation_id }}"'))|View in Kibana> | <${GRAFANA_URL}/d/custody-overview|Monitoring Dashboard>
+        actions:
+          - type: 'button'
+            text: 'Acknowledge'
+            url: '${ALERTMANAGER_URL}/#/alerts'
+          - type: 'button'
+            text: 'View Details'
+            url: '${KIBANA_URL}/app/discover'
+  
+  # Slack High Priority
+  - name: 'slack-high'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#alerts-high'
+        username: 'IC Custody Alerts'
+        icon_emoji: ':warning:'
+        color: 'warning'
+        title: ':warning: High Priority Alert'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* P1 - HIGH
+          *Category:* {{ .GroupLabels.category }}
+          *Service:* {{ .GroupLabels.service }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+  
+  # Slack Medium Priority
+  - name: 'slack-medium'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#alerts-medium'
+        username: 'IC Custody Alerts'
+        icon_emoji: ':information_source:'
+        color: 'good'
+        title: ':information_source: Medium Priority Alert'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* P2 - MEDIUM
+          *Category:* {{ .GroupLabels.category }}
+          *Description:* {{ .Annotations.description }}
+  
+  # Slack Security Team
+  - name: 'slack-security'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#security-alerts'
+        username: 'IC Custody Security'
+        icon_emoji: ':shield:'
+        color: 'danger'
+        title: ':shield: Security Alert'
+        text: |
+          *Security Event:* {{ .GroupLabels.event_type }}
+          *Severity:* {{ .GroupLabels.severity }}
+          *Actor:* {{ .GroupLabels.actor_id_hash }}
+          *Organization:* {{ .GroupLabels.organization_id }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+          
+          {{ if .GroupLabels.correlation_id }}
+          *Correlation ID:* {{ .GroupLabels.correlation_id }}
+          {{ end }}
+          
+          {{ if .Annotations.threat_indicators }}
+          *Threat Indicators:* {{ .Annotations.threat_indicators }}
+          {{ end }}
+        actions:
+          - type: 'button'
+            text: 'Investigate'
+            url: '${KIBANA_URL}/app/security'
+          - type: 'button'
+            text: 'Block Actor'
+            url: '${ADMIN_PORTAL_URL}/users/{{ .GroupLabels.actor_id_hash }}/block'
+            style: 'danger'
+            confirm:
+              title: 'Block Actor'
+              text: 'Are you sure you want to block this actor?'
+  
+  # Slack Operations Team
+  - name: 'slack-operations'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#custody-operations'
+        username: 'IC Custody Operations'
+        icon_emoji: ':bank:'
+        color: 'warning'
+        title: ':bank: Custody Operations Alert'
+        text: |
+          *Operation:* {{ .GroupLabels.event_type }}
+          *Severity:* {{ .GroupLabels.severity }}
+          *Organization:* {{ .GroupLabels.organization_id }}
+          *Risk Score:* {{ .GroupLabels.risk_score }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+  
+  # Slack Infrastructure Team
+  - name: 'slack-infrastructure'
+    slack_configs:
+      - api_url: '${SLACK_API_URL}'
+        channel: '#infrastructure'
+        username: 'IC Custody Infrastructure'
+        icon_emoji: ':gear:'
+        color: 'warning'
+        title: ':gear: Infrastructure Alert'
+        text: |
+          *System:* {{ .GroupLabels.service }}
+          *Metric:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .GroupLabels.severity }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+  
+  # Email Compliance Team
+  - name: 'email-compliance'
+    email_configs:
+      - to: '${COMPLIANCE_EMAIL:-compliance@custody-platform.com}'
+        subject: '[IC Custody] Compliance Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          A compliance-related alert has been triggered in the IC Custody Platform.
+          
+          Alert Details:
+          - Event Type: {{ .GroupLabels.event_type }}
+          - Severity: {{ .GroupLabels.severity }}
+          - Organization: {{ .GroupLabels.organization_id }}
+          - Compliance Result: {{ .GroupLabels.compliance_result }}
+          - Policy Version: {{ .GroupLabels.policy_version }}
+          - Description: {{ .Annotations.description }}
+          - Time: {{ (.StartsAt).Format "2006-01-02 15:04:05 UTC" }}
+          
+          {{ if .GroupLabels.correlation_id }}
+          Correlation ID: {{ .GroupLabels.correlation_id }}
+          {{ end }}
+          
+          Please review the compliance event and take appropriate action if required.
+          
+          View Details: ${KIBANA_URL}/app/discover#/?_g=(filters:!(),query:(language:kuery,query:'correlation_id:"{{ .GroupLabels.correlation_id }}"'))
+          
+          Compliance Dashboard: ${GRAFANA_URL}/d/compliance-overview
+          
+          Best regards,
+          IC Custody Platform Monitoring
+        headers:
+          X-Priority: 'High'
+          X-Compliance-Alert: 'true'
+
+# Templates for reusable message formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

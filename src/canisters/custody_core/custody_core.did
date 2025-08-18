@@ -1,0 +1,109 @@
+type AccountType = variant {
+  CorporateCustody;
+  GovernmentCustody;
+  InstitutionalCustody;
+  TrustCustody;
+};
+
+type AccountStatus = variant {
+  Active;
+  Frozen;
+  PendingApproval;
+  Suspended;
+  Closed;
+};
+
+type ComplianceStatus = variant {
+  Compliant;
+  PendingKyc;
+  RequiresReview;
+  NonCompliant;
+};
+
+type TransactionType = variant {
+  Deposit;
+  Withdrawal;
+  Transfer;
+  Emergency;
+};
+
+type TransactionStatus = variant {
+  Pending;
+  Approved;
+  Executed;
+  Rejected;
+  Cancelled;
+};
+
+type CustodyAccount = record {
+  id: text;
+  owner: principal;
+  institution_name: text;
+  account_type: AccountType;
+  status: AccountStatus;
+  created_at: nat64;
+  balance: nat64;
+  reserved_balance: nat64;
+  authorized_users: vec principal;
+  required_approvals: nat8;
+  compliance_status: ComplianceStatus;
+};
+
+type Transaction = record {
+  id: text;
+  account_id: text;
+  transaction_type: TransactionType;
+  amount: nat64;
+  recipient: opt text;
+  status: TransactionStatus;
+  initiated_by: principal;
+  approvals: vec principal;
+  required_approvals: nat8;
+  created_at: nat64;
+  executed_at: opt nat64;
+  compliance_checked: bool;
+  risk_score: nat8;
+};
+
+type CustodySettings = record {
+  min_balance_threshold: nat64;
+  max_transaction_limit: nat64;
+  emergency_freeze_enabled: bool;
+  auto_compliance_check: bool;
+  risk_threshold: nat8;
+};
+
+type Result = variant {
+  Ok: text;
+  Err: text;
+};
+
+service : {
+  // Account Management
+  create_custody_account: (text, AccountType, nat8) -> (Result);
+  approve_custody_account: (text) -> (Result);
+  add_authorized_user: (text, principal) -> (Result);
+  
+  // Transaction Management
+  initiate_transaction: (text, TransactionType, nat64, opt text) -> (Result);
+  approve_transaction: (text) -> (Result);
+  
+  // Emergency Functions
+  emergency_freeze_account: (text) -> (Result);
+  emergency_unfreeze_account: (text) -> (Result);
+  
+  // Query Functions
+  get_custody_account: (text) -> (opt CustodyAccount) query;
+  get_user_accounts: (principal) -> (vec CustodyAccount) query;
+  get_transaction: (text) -> (opt Transaction) query;
+  get_account_transactions: (text) -> (vec Transaction) query;
+  get_pending_transactions: (text) -> (vec Transaction) query;
+  get_custody_settings: () -> (CustodySettings) query;
+  
+  // Admin Functions
+  add_authorized_operator: (principal) -> (Result);
+  update_custody_settings: (CustodySettings) -> (Result);
+  
+  // Health Check
+  health_check: () -> (text) query;
+}
