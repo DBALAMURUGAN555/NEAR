@@ -12,18 +12,16 @@
     },
     "yield_engine": {
       "type": "rust",
-      "build": "cargo build --target wasm32-unknown-unknown --release",
+      "package": "yield_engine",
       "candid": "src/canisters/yield_engine/yield_engine.did"
     },
     "oracle": {
-      "type": "rust",
-      "candid": "src/canisters/oracle/oracle.did",
-      "build": "cargo build --target wasm32-unknown-unknown --release"
+      "type": "motoko",
+      "main": "src/canisters/oracle/main.mo"
     },
     "compliance": {
-      "type": "rust",
-      "candid": "src/canisters/compliance/compliance.did",
-      "build": "cargo build --target wasm32-unknown-unknown --release"
+      "type": "motoko",
+      "main": "src/canisters/compliance/main.mo"
     },
     "nft": {
       "type": "motoko",
@@ -32,12 +30,6 @@
     "admin": {
       "type": "motoko",
       "main": "src/canisters/admin/main.mo"
-    }
-  },
-  "defaults": {
-    "build": {
-      "packtool": "npm run build",
-      "args": ""
     }
   },
   "networks": {

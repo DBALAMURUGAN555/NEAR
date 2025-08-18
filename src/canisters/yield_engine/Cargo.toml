@@ -1,0 +1,15 @@
+[package]
+name = "yield_engine"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "yield_engine"
+path = "lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = "0.10"
+ic-cdk = "0.13"
+ic-cdk-macros = "0.13"
+serde = { version = "1.0", features = ["derive"] }

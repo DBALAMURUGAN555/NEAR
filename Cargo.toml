@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "src/canisters/yield_engine",
+]
+
+[workspace.dependencies]
+candid = "0.10"
+ic-cdk = "0.13"
+ic-cdk-macros = "0.13"
+serde = { version = "1.0", features = ["derive"] }
