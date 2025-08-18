@@ -1,0 +1,25 @@
+type YieldStrategy = record {
+    name: text;
+    apy: float64;
+    risk_level: nat8;
+    is_active: bool;
+};
+
+type YieldPosition = record {
+    strategy: text;
+    amount: nat64;
+    start_time: nat64;
+    accumulated_yield: nat64;
+};
+
+type Result = variant {
+    Ok: text;
+    Err: text;
+};
+
+service : {
+    get_yield_strategies: () -> (vec YieldStrategy) query;
+    deposit_for_yield: (text, nat64) -> (Result);
+    get_user_positions: (text) -> (vec YieldPosition) query;
+    greet: (text) -> (text) query;
+}

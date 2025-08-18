@@ -1,0 +1,26 @@
+{
+  "__Candid_UI": {
+    "local": "avqkn-guaaa-aaaaa-qaaea-cai"
+  },
+  "admin": {
+    "local": "bkyz2-fmaaa-aaaaa-qaaaq-cai"
+  },
+  "compliance": {
+    "local": "bd3sg-teaaa-aaaaa-qaaba-cai"
+  },
+  "liquidator": {
+    "local": "be2us-64aaa-aaaaa-qaabq-cai"
+  },
+  "nft": {
+    "local": "br5f7-7uaaa-aaaaa-qaaca-cai"
+  },
+  "oracle": {
+    "local": "bw4dl-smaaa-aaaaa-qaacq-cai"
+  },
+  "vault_core": {
+    "local": "b77ix-eeaaa-aaaaa-qaada-cai"
+  },
+  "yield_engine": {
+    "local": "by6od-j4aaa-aaaaa-qaadq-cai"
+  }
+}

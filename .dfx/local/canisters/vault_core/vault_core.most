@@ -1,0 +1,5 @@
+// Version: 1.0.0
+actor {
+  stable MINIMUM_COLLATERAL_RATIO : Nat;
+  stable var vaultCount : Nat
+};

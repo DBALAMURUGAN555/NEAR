@@ -1,0 +1,6 @@
+service : {
+  getMinimumCollateralRatio: () -> (nat);
+  getVaultCount: () -> (nat);
+  greet: (text) -> (text);
+  incrementVaultCount: () -> (nat);
+}
