@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "dfx": "0.18.0",
+  "canisters": {
+    "custody_core": {
+      "type": "rust",
+      "package": "custody_core",
+      "candid": "src/canisters/custody_core/custody_core.did"
+    },
+    "events": {
+      "type": "motoko",
+      "main": "src/canisters/events/main.mo"
+    },
+    "compliance": {
+      "type": "motoko",
+      "main": "src/canisters/compliance/main.mo"
+    },
+    "multisig": {
+      "type": "motoko",
+      "main": "src/canisters/multisig/main.mo"
+    },
+    "frontend": {
+      "source": [
+        "src/frontend/build/"
+      ],
+      "type": "assets"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
+    }
+  },
+  "output_env_file": ".env"
+}
