@@ -1,0 +1,14 @@
+{
+  "defi": {
+    "local": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+  },
+  "proof_of_reserves": {
+    "local": "rrkah-fqaaa-aaaaa-aaaaq-cai"
+  },
+  "icrc_ledger": {
+    "local": "ryjl3-tyaaa-aaaaa-aaaba-cai"
+  },
+  "minter": {
+    "local": "rkp4c-7iaaa-aaaaa-aaaca-cai"
+  }
+}

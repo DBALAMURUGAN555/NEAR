@@ -1,0 +1,31 @@
+{
+  "replica_rev": "d966b2737ca75f1bfaa84f21e7f3f7c54b5d7f33",
+  "type": "replica",
+  "config": {
+    "http_handler": {
+      "port": null,
+      "write_port_to": "/mnt/c/Users/sivak/OneDrive/Desktop/ICP_Project2/NEAR/ckbtc-defi-project/.dfx/network/local/replica-configuration/replica-1.port"
+    },
+    "state_manager": {
+      "state_root": "/mnt/c/Users/sivak/OneDrive/Desktop/ICP_Project2/NEAR/ckbtc-defi-project/.dfx/network/local/state/replicated_state"
+    },
+    "crypto": {
+      "crypto_root": "/mnt/c/Users/sivak/OneDrive/Desktop/ICP_Project2/NEAR/ckbtc-defi-project/.dfx/network/local/state/crypto_store"
+    },
+    "artifact_pool": {
+      "consensus_pool_path": "/mnt/c/Users/sivak/OneDrive/Desktop/ICP_Project2/NEAR/ckbtc-defi-project/.dfx/network/local/state/consensus_pool"
+    },
+    "subnet_type": "application",
+    "btc_adapter": {
+      "enabled": false,
+      "socket_path": null
+    },
+    "canister_http_adapter": {
+      "enabled": true,
+      "socket_path": "/tmp/ic-https-outcalls-adapter-socket.804.1755966275"
+    },
+    "log_level": "error",
+    "artificial_delay": 600,
+    "use_old_metering": false
+  }
+}

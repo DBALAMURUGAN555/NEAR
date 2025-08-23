@@ -1,0 +1,23 @@
+[package]
+name = "minter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ic-cdk = "0.12"
+ic-cdk-macros = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+candid = "0.10"
+
+# TODO: Add actual ckBTC minter dependencies when implementing production code
+# Reference the official ckBTC minter implementation at:
+# https://github.com/dfinity/ic/tree/master/rs/bitcoin/ckbtc/minter
+
+[dependencies.ic-cdk-timers]
+version = "0.6"
+
+[dependencies.serde_bytes]
+version = "0.11"

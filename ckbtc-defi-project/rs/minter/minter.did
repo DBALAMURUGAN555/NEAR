@@ -1,0 +1,18 @@
+type TxId = nat64;
+type Amount = nat64;
+type BitcoinAddress = text;
+
+type MinterError = variant {
+  InsufficientFunds : record { balance : Amount };
+  InvalidDestination : record { message : text };
+  TransactionFailed : record { reason : text };
+  SystemError : record { message : text };
+  TemporarilyUnavailable;
+};
+
+service : {
+  request_mint : (principal, Amount) -> (variant { Ok : TxId; Err : MinterError });
+  request_burn : (principal, Amount, BitcoinAddress) -> (variant { Ok : TxId; Err : MinterError });
+  get_minter_info : () -> (text) query;
+  get_bitcoin_address : (principal) -> (BitcoinAddress) query;
+}
