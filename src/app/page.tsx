@@ -4,11 +4,8 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { 
   Shield, 
-  Globe, 
-  Zap, 
   Users, 
   TrendingUp, 
-  Lock, 
   CheckCircle, 
   ArrowRight,
   Building2,

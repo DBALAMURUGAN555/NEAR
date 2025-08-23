@@ -76,6 +76,7 @@
     "prepush": "npm run precommit && npm run test:integration"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.7.0",
     "@clerk/nextjs": "^6.31.1",
     "@clerk/themes": "^2.4.10",
     "@dfinity/agent": "^3.2.1",

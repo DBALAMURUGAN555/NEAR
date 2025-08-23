@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, SignInButton, UserButton, OrganizationSwitcher, useUser } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
 import { 
   HomeIcon, 
@@ -15,6 +15,9 @@ import TransactionBuilder from './components/TransactionBuilder';
 import SystemMonitor from './components/SystemMonitor';
 import { ComplianceCenter } from './components/ComplianceCenter';
 import { AdminPanel } from './components/AdminPanel';
+import { userHasAnyRole } from './lib/rbac';
+import RiskCenter from './components/RiskCenter';
+import SecurityCenter from './components/SecurityCenter';
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -22,7 +25,7 @@ if (!clerkPubKey) {
   throw new Error('Missing Publishable Key');
 }
 
-export type Page = 'dashboard' | 'transaction' | 'compliance' | 'monitor' | 'reports' | 'admin' | 'settings';
+export type Page = 'dashboard' | 'transaction' | 'compliance' | 'monitor' | 'reports' | 'admin' | 'settings' | 'security';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -32,7 +35,8 @@ function App() {
     { id: 'transaction' as Page, name: 'New Transaction', icon: PlusCircleIcon },
     { id: 'compliance' as Page, name: 'Compliance', icon: ShieldCheckIcon },
     { id: 'monitor' as Page, name: 'System Monitor', icon: CubeTransparentIcon },
-    { id: 'reports' as Page, name: 'Reports', icon: DocumentTextIcon },
+    { id: 'reports' as Page, name: 'Risk Center', icon: DocumentTextIcon },
+    { id: 'security' as Page, name: 'Security Center', icon: ShieldCheckIcon },
     { id: 'admin' as Page, name: 'Administration', icon: Cog6ToothIcon }
   ];
 
@@ -47,17 +51,11 @@ function App() {
       case 'monitor':
         return <SystemMonitor />;
       case 'admin':
-        return <AdminPanel />;
+        return <AdminRoute />;
       case 'reports':
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
-            <div className="text-center">
-              <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Reports & Analytics</h2>
-              <p className="text-gray-600">Comprehensive reporting and analytics dashboard coming soon.</p>
-            </div>
-          </div>
-        );
+        return <RiskCenter />;
+      case 'security':
+        return <SecurityCenter />;
       case 'settings':
         return (
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
@@ -112,28 +110,13 @@ function App() {
                     Custody Platform
                   </h1>
                 </div>
+                <div className="mt-4">
+                  <OrganizationSwitcher hidePersonal profileMode="navigation" />
+                </div>
               </div>
               
               <nav className="mt-8 px-4">
-                <div className="space-y-2">
-                  {navigation.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setCurrentPage(item.id)}
-                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                          currentPage === item.id
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                      >
-                        <Icon className="h-5 w-5 mr-3" />
-                        {item.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <SidebarNav navigation={navigation} currentPage={currentPage} setCurrentPage={setCurrentPage} />
               </nav>
               
               <div className="absolute bottom-4 left-4 right-4">
@@ -165,3 +148,52 @@ function App() {
 }
 
 export default App;
+
+function AdminRoute() {
+  const { user } = useUser();
+  const allowed = userHasAnyRole(user || null, ['admin', 'ops']);
+  if (!allowed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-semibold text-gray-900 mb-2">Access restricted</p>
+          <p className="text-gray-600">You need admin or ops privileges to view this page.</p>
+        </div>
+      </div>
+    );
+  }
+  return <AdminPanel />;
+}
+
+function SidebarNav({ navigation, currentPage, setCurrentPage }: { navigation: Array<{ id: Page; name: string; icon: (props: React.ComponentProps<'svg'>) => JSX.Element }>; currentPage: Page; setCurrentPage: (p: Page) => void; }) {
+  const { user } = useUser();
+  return (
+    <div className="space-y-2">
+      {navigation.map((item) => {
+        const Icon = item.icon;
+        if (item.id === 'admin') {
+          const canSeeAdmin = userHasAnyRole(user || null, ['admin', 'ops']);
+          if (!canSeeAdmin) return null;
+        }
+        if (item.id === 'security') {
+          const canSeeSecurity = userHasAnyRole(user || null, ['admin', 'ops', 'security']);
+          if (!canSeeSecurity) return null;
+        }
+        return (
+          <button
+            key={item.id}
+            onClick={() => setCurrentPage(item.id)}
+            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              currentPage === item.id
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <Icon className="h-5 w-5 mr-3" />
+            {item.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

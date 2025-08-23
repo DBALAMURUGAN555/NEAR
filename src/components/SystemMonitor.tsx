@@ -305,8 +305,8 @@ export default function SystemMonitor() {
   const criticalAlerts = securityAlerts.filter(alert => !alert.resolved && alert.level === 'critical');
   const highAlerts = securityAlerts.filter(alert => !alert.resolved && (alert.level === 'high' || alert.level === 'medium'));
   const healthyMetrics = systemMetrics.filter(metric => metric.status === 'healthy').length;
-  const warningMetrics = systemMetrics.filter(metric => metric.status === 'warning').length;
-  const criticalMetrics = systemMetrics.filter(metric => metric.status === 'critical').length;
+  // const warningMetrics = systemMetrics.filter(metric => metric.status === 'warning').length;
+  // const criticalMetrics = systemMetrics.filter(metric => metric.status === 'critical').length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">

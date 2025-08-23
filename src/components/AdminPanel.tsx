@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, AlertTriangle, Pause, Play, Users, TrendingUp, Shield, Database } from 'lucide-react';
+import { Settings, AlertTriangle, Pause, Play, Users, TrendingUp, Shield } from 'lucide-react';
 
 export function AdminPanel() {
   const [systemStatus, setSystemStatus] = useState<'active' | 'maintenance' | 'emergency'>('active');

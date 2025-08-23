@@ -5,8 +5,7 @@ import custodyApi, {
   CustodyAccount, 
   Transaction, 
   RiskAssessment,
-  AuditEvent,
-  ComplianceCheck
+  AuditEvent
 } from '../services/api';
 
 // Hook for managing custody accounts

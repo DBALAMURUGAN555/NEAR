@@ -58,10 +58,10 @@ interface Transaction {
 export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState('24h');
-  const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
+  const [viewMode] = useState<'overview' | 'detailed'>('overview');
   
   // Real-time metrics that would come from your canisters
-  const [metrics, setMetrics] = useState<MetricData[]>([
+  const [metrics] = useState<MetricData[]>([
     {
       title: 'Assets Under Custody',
       value: '$2.47B',
